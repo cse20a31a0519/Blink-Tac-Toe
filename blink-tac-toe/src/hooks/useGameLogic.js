@@ -32,35 +32,31 @@ const useGameLogic = () => {
   };
 
   const getNextEmoji = useCallback(
-    (player) => {
-      const category = selectedCategories[`player${player}`];
-      if (!category) return null;
+  (player) => {
+    const category = selectedCategories[`player${player}`];
+    if (!category) return null;
 
-      const categoryEmojis = emojiCategories[category];
-      const playerUsedEmojis = usedEmojis[`player${player}`];
+    const categoryEmojis = emojiCategories[category];
+    const playerHistory = gameHistory[`player${player}`];
+    const lastEmojis = playerHistory.slice(-3).map(e => e.emoji);
+    let nextEmoji = categoryEmojis.find(e => !lastEmojis.includes(e));
 
-      const unusedEmojis = categoryEmojis.filter(
-        (emoji) => !playerUsedEmojis.includes(emoji)
-      );
-
-      if (unusedEmojis.length === 0) {
-        setUsedEmojis((prev) => ({
-          ...prev,
-          [`player${player}`]: [],
-        }));
-        return categoryEmojis[0];
+    if (!nextEmoji) {
+      for (let e of categoryEmojis) {
+        if (lastEmojis.indexOf(e) === -1) {
+          nextEmoji = e;
+          break;
+        }
       }
+      if (!nextEmoji) {
+        nextEmoji = categoryEmojis[(categoryEmojis.indexOf(lastEmojis[lastEmojis.length - 1]) + 1) % categoryEmojis.length];
+      }
+    }
 
-      const nextEmoji = unusedEmojis[0];
-      setUsedEmojis((prev) => ({
-        ...prev,
-        [`player${player}`]: [...prev[`player${player}`], nextEmoji],
-      }));
-
-      return nextEmoji;
-    },
-    [selectedCategories, usedEmojis, emojiCategories]
-  );
+    return nextEmoji;
+  },
+  [selectedCategories, emojiCategories, gameHistory]
+);
 
   const checkWinner = useCallback((newBoard) => {
     const winPatterns = [
