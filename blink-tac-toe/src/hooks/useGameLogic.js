@@ -108,71 +108,56 @@ const useGameLogic = () => {
 
     return availableCells;
   }, []);
-
   const getBestMove = useCallback(
-    (board, gameHistory) => {
-      const validMoves = getValidMoves(board, 2, gameHistory);
+  (board, gameHistory) => {
+    const validMoves = getValidMoves(board, 2, gameHistory);
+    if (validMoves.length === 0) return null;
 
-      if (validMoves.length === 0) return null;
-
-      for (let move of validMoves) {
-        const testBoard = [...board];
-        testBoard[move] = { player: 2, emoji: '🤖', id: Date.now() };
-
-        const computerHistory = [...gameHistory.player2];
-        if (computerHistory.length >= 3) {
-          const oldestEmoji = computerHistory[0];
-          const vanishIndex = board.findIndex(
-            (cell) => cell && cell.id === oldestEmoji.id
-          );
-          if (vanishIndex !== -1 && vanishIndex !== move) {
-            testBoard[vanishIndex] = null;
-          }
+    const simulateMove = (testBoard, move, player, history) => {
+      const newBoard = [...testBoard];
+      const newHistory = [...history];
+      const newEmoji = { player, emoji: player === 2 ? '🤖' : '🎯', id: Date.now() + Math.random() };
+      if (newHistory.length >= 3) {
+        const oldestEmoji = newHistory[0];
+        const vanishIndex = newBoard.findIndex(
+          (cell) => cell && cell.id === oldestEmoji.id
+        );
+        if (vanishIndex !== -1 && vanishIndex !== move) {
+          newBoard[vanishIndex] = null;
         }
-
-        if (checkWinner(testBoard)?.winner === 2) {
-          return move;
-        }
+        newHistory.shift();
       }
+      newBoard[move] = newEmoji;
+      newHistory.push(newEmoji);
+      return newBoard;
+    };
 
-      for (let move of validMoves) {
-        const testBoard = [...board];
-        testBoard[move] = { player: 1, emoji: '🎯', id: Date.now() };
-
-        const player1History = [...gameHistory.player1];
-        if (player1History.length >= 3) {
-          const oldestEmoji = player1History[0];
-          const vanishIndex = board.findIndex(
-            (cell) => cell && cell.id === oldestEmoji.id
-          );
-          if (vanishIndex !== -1 && vanishIndex !== move) {
-            testBoard[vanishIndex] = null;
-          }
-        }
-
-        if (checkWinner(testBoard)?.winner === 1) {
-          return move;
-        }
+    for (let move of validMoves) {
+      const testBoard = simulateMove(board, move, 2, gameHistory.player2);
+      if (checkWinner(testBoard)?.winner === 2) {
+        return move;
       }
-
-      if (validMoves.includes(4)) {
-        return 4;
+    }
+    for (let move of validMoves) {
+      const testBoard = simulateMove(board, move, 1, gameHistory.player1);
+      if (checkWinner(testBoard)?.winner === 1) {
+        return move;
       }
+    }
 
-      const corners = [0, 2, 6, 8];
-      const availableCorners = corners.filter((corner) =>
-        validMoves.includes(corner)
-      );
-      if (availableCorners.length > 0) {
-        return availableCorners[
-          Math.floor(Math.random() * availableCorners.length)
-        ];
-      }
+    if (validMoves.includes(4)) return 4;
 
-      return validMoves[Math.floor(Math.random() * validMoves.length)];
-    },
-    [getValidMoves, checkWinner]
-  );
+    const corners = [0, 2, 6, 8];
+    const availableCorners = corners.filter((corner) => validMoves.includes(corner));
+    if (availableCorners.length > 0) {
+      return availableCorners[Math.floor(Math.random() * availableCorners.length)];
+    }
+
+
+    return validMoves[Math.floor(Math.random() * validMoves.length)];
+  },
+  [getValidMoves, checkWinner]
+);
 
   const handleCellClick = useCallback(
     async (index) => {
@@ -293,9 +278,20 @@ const useGameLogic = () => {
     handleCellClick,
   ]);
 
-  useEffect(() => {
+
+
+useEffect(() => {
+  if (
+    currentPlayer === 2 &&
+    gameMode === 'computer' &&
+    !winner &&
+    !isPaused &&
+    animatingCells.size === 0 &&
+    vanishingCells.size === 0
+  ) {
     makeComputerMove();
-  }, [makeComputerMove]);
+  }
+}, [currentPlayer, gameMode, winner, isPaused, animatingCells, vanishingCells]);
 
   const resetGame = useCallback(() => {
     setBoard(Array(9).fill(null));
